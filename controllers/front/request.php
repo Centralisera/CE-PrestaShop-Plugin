@@ -25,6 +25,7 @@ if (!defined('_PS_VERSION_')) {
         $currency = new Currency(intval($cart->id_currency));
         $currency_iso_code = $currency->iso_code;
 
+        $postCode = $address->postcode ?? "N/A";
         
         $data = array();
 
@@ -88,71 +89,80 @@ if (!defined('_PS_VERSION_')) {
         $app_key = Configuration::get('CENTRALISERA_APP_KEY');
         $secret_key = Configuration::get('CENTRALISERA_SECRET_KEY');
 
-        $requestData = [
-            'firstName' => $customer->firstname,
-            'middleName' => '',
-            'lastName' => $customer->lastname,
-            'reference' =>$orderDetails->reference ,
-            'email' => $customer->email,
-            'dob' => $customer->birthday,
-            'contactNumber' => $address->phone,
-            'merchantAaccountId' => $account_id,
-            'address' => $address->address1.' '.$address_ship->address2,
-            'country' => $address->country,
-            'state' => $address_ship->address2 ?? 'not available',
-            'city' => $address->city ?? 'not available',
-            'currency' => $currency_iso_code,
-            'amount' => $data['total_amount'],
-            'ttl' => '10',
-            'tagName' =>$orderDetails->reference ,
-            'webhookUrl' => 'https://demo-payment.centralisera.com/api/payment/webhook'
-        ];
+        $requestData = '{
+            "firstName" : "'.$customer->firstname.'",
+                "middleName" : "",
+                "lastName" : "'.$customer->lastname.'",
+                "reference" : "'.$orderDetails->reference.'" ,
+                "email" : "'.$customer->email.'",
+                "dob" : "'.$customer->birthday.'",
+                "contactNumber" : "'.$address->phone.'",
+                "merchantAaccountId" : "'.$account_id.'",
+                "address" : "'.$address->address1.' '.$address_ship->address2.'",
+                "country" : "'.$address->country.'",
+                "state" : "N/A",
+                "city" : "'.$address->city.'",
+                "zipCode" : "'.$postCode.'",
+                "currency" : "'.$currency_iso_code.'",
+                "amount" : "'.$data['total_amount'].'",
+                "ttl" : "10",
+                "tagName" : "", 
+                "webhookUrl" : "'.$this->trans($this->context->link->getModuleLink('CENTRALISERA', 'ipn', array(), true)).'"
+        }';
 
         $api_mode = Configuration::get('MODE');
 
         if($api_mode == 1) {
-            $payment_url = 'https://staging.centralisera.com/api/payment/request';
+            $payment_url = 'https://staging.centralisera.com/api/v1/payment/request';
         }
         else {
-            $payment_url = 'https://0520-103-213-242-125.ngrok-free.app/api/payment/request';
+            $payment_url = 'https://dev.centralisera.com/api/v1/payment/request';
         }
 
         $username = $app_key;
         $password = $secret_key;
 
-        /*$log_filename = "logfile";
+        $log_filename = "logfile";
         if (!file_exists($log_filename)) {
             mkdir($log_filename, 0777, true);
         }
 
         $log_file_data = $log_filename.'/log_' . date('d-M-Y') . '.log';
-        file_put_contents($log_file_data, 'log message calling.....' . "\n", FILE_APPEND);
-        file_put_contents($log_file_data, 'request Data.....' . json_encode($requestData)."\n", FILE_APPEND);
-        file_put_contents($log_file_data, 'request credentials user.....' . $username."\n", FILE_APPEND);
-        file_put_contents($log_file_data, 'request credentials pass.....' . $password."\n", FILE_APPEND);
-        */
+        //file_put_contents($log_file_data, 'log message calling.....' . "\n", FILE_APPEND);
+        //file_put_contents($log_file_data, 'request Data.....' . $requestData."\n", FILE_APPEND);
+        //file_put_contents($log_file_data, 'request credentials user.....' . $username."\n", FILE_APPEND);
+        //file_put_contents($log_file_data, 'request credentials pass.....' . $password."\n", FILE_APPEND);
+        //file_put_contents($log_file_data, 'request url.....' . $payment_url."\n", FILE_APPEND);
 
-        //die();
+        $curl = curl_init();
+
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => $payment_url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => 'POST',
+            CURLOPT_POSTFIELDS =>$requestData,
+            CURLOPT_HTTPHEADER => array(
+                'Accept: application/json',
+                'Content-Type: application/json',
+                'Authorization: Basic '.base64_encode("$username:$password")
+            ),
+        ));
+
+        $content = curl_exec($curl);
+        $code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+
+        //file_put_contents($log_file_data, 'response Data.....' . $content."\n", FILE_APPEND);
+        //file_put_contents($log_file_data, 'code Data.....' . $code."\n", FILE_APPEND);
 
 
-        $handle = curl_init();
-
-        curl_setopt($handle, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
-        curl_setopt($handle, CURLOPT_USERPWD, "$username:$password");
-        curl_setopt($handle, CURLOPT_URL, $payment_url);
-        curl_setopt($handle, CURLOPT_TIMEOUT, 10);
-        curl_setopt($handle, CURLOPT_CONNECTTIMEOUT, 10);
-        curl_setopt($handle, CURLOPT_POST, 1 );
-        curl_setopt($handle, CURLOPT_POSTFIELDS, $requestData);
-        curl_setopt($handle, CURLOPT_RETURNTRANSFER, true);
-
-        $content = curl_exec($handle );
-        $code = curl_getinfo($handle, CURLINFO_HTTP_CODE);
-
-
-        if($code == 200 && !( curl_errno($handle)))
+        if($code == 200 && !( curl_errno($curl)))
         {
-            curl_close( $handle);
+            curl_close( $curl);
 
             $apiResponse = $content;
 

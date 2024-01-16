@@ -18,14 +18,12 @@ class CENTRALISERAIpnModuleFrontController extends ModuleFrontController
                 mkdir($log_filename, 0777, true);
             }
 
-            $log_file_data = $log_filename.'/log_' . date('d-M-Y') . '.log';
-            file_put_contents($log_file_data, 'log message calling.....' . "\n", FILE_APPEND);
-
-            //header('Location: ' . $_SERVER['HTTP_REFERER']);
+            //$log_file_data = $log_filename.'/log_' . date('d-M-Y') . '.log';
+            //file_put_contents($log_file_data, 'log message calling.....' . "\n", FILE_APPEND);
 
             if($_SERVER['REQUEST_METHOD'] == 'GET'){
 
-                $cart = null;
+                //$cart = null;
 
                 if(isset($_COOKIE['cart_id'])) {
                     $cart = $_COOKIE['cart_id'];
@@ -41,15 +39,17 @@ class CENTRALISERAIpnModuleFrontController extends ModuleFrontController
 
 
                 if ($history->id_order){
+                    $cart = null;
                     Tools::redirect('index.php?controller=order-detail&id_order='.$history->id_order);
                 }else{
+                    $cart = null;
                     Tools::redirect('index.php?controller=order&step=1');
                 }
             }
 
             if(isset($_POST))
             {
-                file_put_contents($log_file_data, 'here i am posting.....' ."\n", FILE_APPEND);
+                //file_put_contents($log_file_data, 'here i am posting.....' ."\n", FILE_APPEND);
 
                 $data = json_decode(file_get_contents("php://input"), true);
 
@@ -99,6 +99,8 @@ class CENTRALISERAIpnModuleFrontController extends ModuleFrontController
                     $update_order_history_status_id =" UPDATE `ps_order_history` SET `id_order_state`=2 WHERE `id_order`='$history->id_order' ";
                     Db::getInstance()->execute($update_order_history_status_id);
 
+                    Tools::redirect('index.php?controller=order-detail&id_order='.$history->id_order);
+
                 }
 
                 else {
@@ -106,6 +108,8 @@ class CENTRALISERAIpnModuleFrontController extends ModuleFrontController
                     $history->changeIdOrderState(8, (int)($history->id_order));
                     $update_order_history_status_id =" UPDATE `ps_order_history` SET `id_order_state`=8 WHERE `id_order`='$history->id_order' ";
                     Db::getInstance()->execute($update_order_history_status_id);
+
+                    Tools::redirect('index.php?controller=order-detail&id_order='.$history->id_order);
                 }
             }
             Tools::redirect('index.php?controller=order-detail&id_order='.$history->id_order);
